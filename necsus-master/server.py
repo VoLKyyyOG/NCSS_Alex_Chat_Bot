@@ -5,4 +5,4 @@ import frontend
 
 if __name__ == '__main__':
   init_db()
-  app.run(debug=True, port=5005)
+  app.run(host='192.168.0.220', debug=True)

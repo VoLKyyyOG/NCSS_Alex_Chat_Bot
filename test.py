@@ -1,7 +1,6 @@
 import random, requests, json
 from flask import Flask, request, jsonify
-from appid import KEY_WEATHER
-
+from appid import KEY_WEATHER, KEY_WOLFRAM
 
 app = Flask(__name__)
 
@@ -59,12 +58,11 @@ def fact():
         'text': response
     }
     
-    return jsonify(message)
+    return jsonify(message)   
 
 @app.route('/weather', methods=['POST'])
 def weather():
     data = request.get_json()
-    num = data.get('text','').split()[-1]
     response = json.loads(requests.get('http://api.openweathermap.org/data/2.5/weather',
                             params = dict(q="Melbourne", APPID=KEY_WEATHER, units="metric")
                             ).text)
@@ -72,11 +70,29 @@ def weather():
     temp = response["main"]
     attr = response["weather"][0]
 
+    if attr['main'] == "Clear":
+        text = f"Today, the weather is {attr['main']} with a maximum temperature of {temp['temp_max']} degrees."
+    else:
+        text = f"Today, there will be some {attr['main']} with a maximum temperature of {temp['temp_max']} degrees."
+
     message = {
         'author': 'WEATHER',
-        'text': f"Today, there will be some {attr['main']} where it is expected to feel like {temp['feels_like']} degrees."
+        'text': text
     }
 
     return jsonify(message)
   
+@app.route('/wolfram', methods=['POST'])
+def wolfram():
+    data = request.get_json()
+    q = data.get('text','').split()[-1]
+    response = requests.get(f'http://api.wolframalpha.com/v2/query?input={q}&appid={KEY_WOLFRAM}').text
+
+    message = {
+        'author': 'WOLFRAM',
+        'text': response
+    }
+
+    return jsonify(message)
+
 app.run(host='0.0.0.0')
