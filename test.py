@@ -1,6 +1,6 @@
 import random, requests, json
 from flask import Flask, request, jsonify
-from appid import KEY_WEATHER, KEY_WOLFRAM
+from appid import *
 
 app = Flask(__name__)
 
@@ -94,5 +94,40 @@ def wolfram():
     }
 
     return jsonify(message)
+
+@app.route('/japan_place', methods=['POST'])
+def find():
+    data = request.get_json()
+    command = data.get('text').split(",")
+    query, loc = ''.join(command[0].split()[1:]), ''.join(command[1])
+
+    URL1 = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={loc},JP&inputtype=textquery&key={API_KEY}"
+
+    placeid = requests.get(URL1).json()['candidates'][0]['place_id']
+    URL2 = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={placeid}&key={API_KEY}"
+
+    response = requests.get(URL2).json()
+    coord = ','.join(str(i) for i in response['result']['geometry']['location'].values())
+
+    URL3 = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={query}&inputtype=textquery&fields=formatted_address,name,opening_hours,rating&locationbias=circle:2000@{coord}&key={API_KEY}"
+
+    response = requests.get(URL3).json()['candidates'][0]
+
+
+    name = response['name']
+    rating = response['rating']
+    address = []
+
+    for word in response['formatted_address'].split(', '):
+        if not "Tokyo" in word and not "Japan" in word:
+            address.append(word)
+
+    message = {
+        'author': 'JAP_BOT',
+        'text': f"The closest place is {name} with a {rating} star rating. They are located at {', '.join(address)}."
+    }
+
+    return jsonify(message)
+
 
 app.run(host='0.0.0.0')
