@@ -1,6 +1,9 @@
 import random, requests, json
 from flask import Flask, request, jsonify
-from appid import *
+
+KEY_WEATHER = "f4ae90e2d9ebd6134141f4509741c3d8"
+KEY_WOLFRAM = "GERJER-AYYEHAG4UX"
+API_KEY = "AIzaSyCbghCD_G0nXdxIKFzoBDctLwUNqsW7Ma4"
 
 app = Flask(__name__)
 
@@ -51,23 +54,31 @@ def sorry():
 
 @app.route('/weather', methods=['POST'])
 def weather():
+    loc = 'sydney'
     data = request.get_json()
-    response = json.loads(requests.get('http://api.openweathermap.org/data/2.5/weather',
-                            params = dict(q="Melbourne", APPID=KEY_WEATHER, units="metric")
-                            ).text) # this is fixed to Melbourne for now
+    response = requests.get(f"https://api.openweathermap.org/data/2.5/forecast/daily?q={loc},AU&cnt=1&APPID={KEY_WEATHER}&units=metric").json()
 
-    temp = response["main"]
-    attr = response["weather"][0]
+    main = response['list'][0]
+    temp = int(main['temp']['max'])
+    wtype = main['weather'][0]['main']
+    fdesc = main['weather'][0]['description']
 
-    # literally hard-coded oops
-    if attr['main'] == "Clear":
-        text = f"Today, the weather is {attr['main']} with a maximum temperature of {temp['temp_max']} degrees."
+    if wtype == "Clear":
+        desc = f"and the {fdesc}"
+    elif wtype == "Clouds":
+        desc = f"with {fdesc}"
+    elif wtype == "Rain":
+        desc = f"with {fdesc}"
     else:
-        text = f"Today, there will be some {attr['main']} with a maximum temperature of {temp['temp_max']} degrees."
+        desc = ""
+
+    weather = f'''
+    The weather in {loc.title()} is currently {temp} degrees {desc}.
+    '''
 
     message = {
         'author': 'WEATHER',
-        'text': text
+        'text': weather
     }
 
     return jsonify(message)
@@ -119,15 +130,21 @@ def find():
 @app.route('/wolfram', methods=['POST'])
 def wolfram():
     data = request.get_json()
-    q = data.get('text','').split()[-1]
-    response = requests.get(f'http://api.wolframalpha.com/v2/query?input={q}&appid={KEY_WOLFRAM}').text
+    q = data.get('text','').split()[1:]
+
+    print('+'.join(q))
+
+    response = requests.get(f"http://api.wolframalpha.com/v1/spoken?appid={KEY_WOLFRAM}&i={'+'.join(q)}%3f&units=metric").text
+
+    if "did not understand" in response or "spoken results available" in response:
+        response = "Please Try Again!"
 
     message = {
         'author': 'WOLFRAM',
         'text': response
     }
 
-    return jsonify(message) # output is an xml which is pre broken
 
+    return jsonify(message)
 
 app.run(host='0.0.0.0')
